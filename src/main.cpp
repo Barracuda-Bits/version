@@ -9,6 +9,7 @@
 #define STRINGIFY(x) #x
 #define GEN_START_YEAR STRINGIFY(2023)
 
+//********************************************************************************************
 std::string GetCommandOutput(const char* cmd)
 {
     char buffer[128];
@@ -22,7 +23,7 @@ std::string GetCommandOutput(const char* cmd)
     _pclose(pipe);
     return result;
 }
-
+//********************************************************************************************
 int main(int argc, char* argv[])
 {
 	// Parse command line arguments
@@ -136,3 +137,4 @@ int main(int argc, char* argv[])
 
 	return 0;
 }
+//********************************************************************************************
