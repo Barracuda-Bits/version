@@ -10,7 +10,7 @@
 #define GEN_START_YEAR STRINGIFY(2023)
 
 //********************************************************************************************
-std::string GetCommandOutput(const char* cmd)
+std::string GetCommandOutput(const char* cmd) noexcept
 {
     char buffer[128];
     std::string result = "";
@@ -24,7 +24,7 @@ std::string GetCommandOutput(const char* cmd)
     return result;
 }
 //********************************************************************************************
-int main(int argc, char* argv[])
+int main(int argc, char* argv[]) noexcept
 {
 	// Parse command line arguments
 	std::string AuthorName = "N/A";
