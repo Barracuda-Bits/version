@@ -7,7 +7,7 @@
 
 #define GEN_PREFIX "BE"
 #define STRINGIFY(x) #x
-#define GEN_START_YEAR STRINGIFY(2023)
+#define GEN_START_YEAR STRINGIFY(2025)
 
 //********************************************************************************************
 std::string GetCommandOutput(const char* cmd) noexcept
