@@ -1,140 +1,193 @@
 // EXTERNAL INCLUDES
-#include <cstdio>
-#include <iostream>
-#include <string>
-#include <array>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 // INTERNAL INCLUDES
 
 #define GEN_PREFIX "BE"
 #define STRINGIFY(x) #x
-#define GEN_START_YEAR STRINGIFY(2025)
+#define MAX_PARAM_SIZE 128
+#define MAX_DATE_SIZE 32
+#define MAX_CPYN_SIZE 64
+#define MAX_OUTPUT_SIZE 4096
 
 //********************************************************************************************
-std::string GetCommandOutput(const char* cmd) noexcept
+char* GetCommandOutput(const char* cmd, char* result, int resultSize)
 {
     char buffer[128];
-    std::string result = "";
     FILE* pipe = _popen(cmd, "r");
-    if (!pipe) return "";
-    
+    if (!pipe) return result;
+
+    char tempResult[4096] = "";
     while (fgets(buffer, sizeof buffer, pipe) != NULL)
-        result += buffer;
-    
+    {
+        if (strlen(tempResult) + strlen(buffer) < sizeof(tempResult))
+            strcat(tempResult, buffer);
+        else
+            break;
+    }
+
     _pclose(pipe);
+
+    if (tempResult[0] != '\0')
+        strncpy(result, tempResult, resultSize - 1);
+
     return result;
 }
 //********************************************************************************************
-int main(int argc, char* argv[]) noexcept
+int main(int argc, char* argv[])
 {
-	// Parse command line arguments
-	std::string AuthorName = "N/A";
-	std::string EngineName = "N/A";
+    printf("Creating version...\n");
 
-	std::string OutputPath = "";
-	
-	for (int i = 0; i < argc; ++i)
+    char AuthorName[MAX_PARAM_SIZE] = "N/A";
+    char EngineName[MAX_PARAM_SIZE] = "N/A";
+	char StartYear[MAX_PARAM_SIZE] = "";
+    char OutputPath[_MAX_PATH] = "";
+
+    for (int i = 1; i < argc; ++i)
+    {
+        if (strcmp(argv[i], "-o") == 0 && (i + 1) < argc)
+            strcpy(OutputPath, argv[i + 1]);
+        else if (strcmp(argv[i], "-e") == 0 && (i + 1) < argc)
+            strcpy(EngineName, argv[i + 1]);
+        else if (strcmp(argv[i], "-a") == 0 && (i + 1) < argc)
+            strcpy(AuthorName, argv[i + 1]);
+		else if (strcmp(argv[i], "-s") == 0 && (i + 1) < argc)
+			strcpy(StartYear, argv[i + 1]);
+		else if (strcmp(argv[i], "-h") == 0)
+		{
+			printf("Usage: version -o <output path> -e <engine name> -a <author name> -s <start year>\n");
+			return 0;
+		}
+    }
+
+    char Fetch[MAX_PARAM_SIZE];
+	GetCommandOutput("git fetch", Fetch, MAX_PARAM_SIZE);
+    if (strstr(Fetch, "fatal"))
+    {
+        printf("Error: Git is not installed or not in PATH\n");
+        return 1;
+    }
+
+	char GitTag[MAX_PARAM_SIZE] = "dev";
+	char GitBranch[MAX_PARAM_SIZE] = "N/A";
+	char GitCommit[MAX_PARAM_SIZE] = "N/A";
+	char GitDate[MAX_PARAM_SIZE] = "0";
+
+	GetCommandOutput("git describe --tags --abbrev=0", GitTag, MAX_PARAM_SIZE);
+	GetCommandOutput("git rev-parse --abbrev-ref HEAD", GitBranch, MAX_PARAM_SIZE);
+	GetCommandOutput("git rev-parse --short HEAD", GitCommit, MAX_PARAM_SIZE);
+	GetCommandOutput("git log -1 --format=%ct", GitDate, MAX_PARAM_SIZE);
+
+	// remove newline characters
+	if (GitTag) GitTag[strcspn(GitTag, "\n")] = 0;
+	if (GitBranch) GitBranch[strcspn(GitBranch, "\n")] = 0;
+	if (GitCommit) GitCommit[strcspn(GitCommit, "\n")] = 0;
+	if (GitDate) GitDate[strcspn(GitDate, "\n")] = 0;
+
+    time_t NowTS = time(0);
+    struct tm* NowDateTime = gmtime(&NowTS);
+
+	if (StartYear[0] == '\0')
 	{
-		// get output path
-		if (strcmp(argv[i], "-o") == NULL)
-		{
-			OutputPath = argv[i + 1];
-		}
-		// get engine name
-		if (strcmp(argv[i], "-e") == NULL)
-		{
-			EngineName = argv[i + 1];
-		}
-		// get author name
-		if (strcmp(argv[i], "-a") == NULL)
-		{
-			AuthorName = argv[i + 1];
-		}
+		printf("Error: Start year is not set, taking this year.\n");
+		snprintf(
+            StartYear,
+            sizeof(StartYear),
+            "%d",
+            NowDateTime->tm_year + 1900
+        );
 	}
 
-	// Execute shell command 'git version' and retrieve the output into variable
-	std::string Fetch = GetCommandOutput("git fetch");
-	if (Fetch.find("fatal") != std::string::npos)
-	{
-		std::cout << "Error: Git is not installed or not in PATH" << std::endl;
-		return 1;
-	}
+    char CopyNotice[MAX_CPYN_SIZE];
+    snprintf(
+        CopyNotice,
+        sizeof(CopyNotice),
+        "\xA9 %s - %d",
+        StartYear,
+        NowDateTime->tm_year + 1900
+    );
 
-	std::string GitTag = GetCommandOutput("git describe --tags --abbrev=0");
-	std::string GitBranch = GetCommandOutput("git rev-parse --abbrev-ref HEAD");
-	std::string GitCommit = GetCommandOutput("git rev-parse --short HEAD");
-	std::string GitDate = GetCommandOutput("git log -1 --format=%ct");
+    char NowDateBuffer[MAX_DATE_SIZE];
+    char NowTimeBuffer[MAX_DATE_SIZE];
+    strftime(NowDateBuffer, MAX_DATE_SIZE, "%Y-%m-%d", NowDateTime);
+    strftime(NowTimeBuffer, MAX_DATE_SIZE, "%H:%M:%S", NowDateTime);
 
-	// Remove newline characters from the end of the strings
-	GitTag.erase(GitTag.find_last_not_of("\n\r") + 1);
-	GitBranch.erase(GitBranch.find_last_not_of("\n\r") + 1);
-	GitCommit.erase(GitCommit.find_last_not_of("\n\r") + 1);
-	GitDate.erase(GitDate.find_last_not_of("\n\r") + 1);
-	
-	// Handle empty
-	if (GitTag.empty() || GitBranch == "dev")
-		GitTag = "dev";
-	if (GitBranch.empty())
-		GitBranch = "N/A";
-	if (GitCommit.empty())
-		GitCommit = "N/A";
-	if (GitDate.empty())
-		GitDate = "N/A";
+    printf("--------------------\n");
+	printf("Parameters collected\n");
+    printf("--------------------\n");
 
-	// Get current date time and print it
-	time_t NowTS = time(0);
-	tm* NowDateTime = gmtime(&NowTS);
-	
-	std::string CopyNotice = "\xA9 " GEN_START_YEAR " - ";
-	CopyNotice += std::to_string(NowDateTime->tm_year + 1900);
+    printf("Author: %s\n", AuthorName);
+    printf("Copy Notice: %s\n", CopyNotice);
+    printf("Engine: %s\n", EngineName);
+    printf("Git Version: %s\n", GitTag);
+    printf("Git Branch: %s\n", GitBranch);
+    printf("Git Commit: %s\n", GitCommit);
 
-	// Convert time to string
-	char NowDateBuffer[32] = { 0 };
-	char NowTimeBuffer[32] = { 0 };
+    char GitDateBuffer[MAX_DATE_SIZE] = "N/A";
+	char GitTimeBuffer[MAX_DATE_SIZE] = "N/A";
+    if (GitDate)
+    {
+        time_t GitTS = atoi(GitDate);
+        struct tm* GitDateTime = gmtime(&GitTS);
 
-	std::strftime(NowDateBuffer, 32, "%Y-%m-%d", NowDateTime);
-	std::strftime(NowTimeBuffer, 32, "%H:%M:%S", NowDateTime);
-	
-	time_t GitTS = std::stoi(GitDate);
-	tm* GitDateTime = gmtime(&GitTS);
+        strftime(GitDateBuffer, MAX_DATE_SIZE, "%Y-%m-%d", GitDateTime);
+        strftime(GitTimeBuffer, MAX_DATE_SIZE, "%H:%M:%S", GitDateTime);
 
-	char GitDateBuffer[32] = { 0 };
-	char GitTimeBuffer[32] = { 0 };
+        printf("Git Date (UTC): %s", asctime(GitDateTime));
+        printf("Build Date (UTC): %s", asctime(NowDateTime));
+    }
 
-	std::strftime(GitDateBuffer, 32, "%Y-%m-%d", NowDateTime);
-	std::strftime(GitTimeBuffer, 32, "%H:%M:%S", NowDateTime);
-	
-	// Print the version information
-	std::cout << "Author: " << AuthorName << std::endl;
-	std::cout << "Copy Notice: " << CopyNotice << std::endl;
-	std::cout << "Engine: " << EngineName << std::endl;
-	std::cout << "Git Version: " << GitTag << std::endl;
-	std::cout << "Git Branch: " << GitBranch << std::endl;
-	std::cout << "Git Commit: " << GitCommit << std::endl;
-	std::cout << "Git Date (UTC): " << asctime(gmtime(&GitTS));
-	std::cout << "Build Date (UTC): " << asctime(gmtime(&NowTS));
+    char versionFile[MAX_OUTPUT_SIZE];
+    snprintf(
+        versionFile,
+        sizeof(versionFile),
+        "#ifndef __VERSION_H__\n"
+		"#define __VERSION_H__\n\n"
+        "#define %s_ENGINE_NAME \"%s\"\n"
+        "#define %s_CPY_NOTE \"%s\"\n"
+        "#define %s_AUTHOR \"%s\"\n\n"
+        "#define %s_GIT_TAG \"%s\"\n"
+        "#define %s_GIT_BRANCH \"%s\"\n"
+        "#define %s_GIT_COMMIT \"%s\"\n"
+        "#define %s_GIT_DATE \"%s\"\n"
+        "#define %s_GIT_TIME \"%s\"\n\n"
+        "#define %s_BUILD_DATE \"%s\"\n"
+        "#define %s_BUILD_TIME \"%s\"\n\n"
+		"#endif\n",
+        GEN_PREFIX, EngineName,
+        GEN_PREFIX, CopyNotice,
+        GEN_PREFIX, AuthorName,
+        GEN_PREFIX, GitTag,
+        GEN_PREFIX, GitBranch,
+        GEN_PREFIX, GitCommit,
+        GEN_PREFIX, GitDateBuffer,
+        GEN_PREFIX, GitTimeBuffer,
+        GEN_PREFIX, NowDateBuffer,
+        GEN_PREFIX, NowTimeBuffer
+    );
 
-	// Generate version.h
-	std::string versionFile = "#pragma once\n\n";
-	versionFile += "#define " GEN_PREFIX "_ENGINE_NAME \"" + EngineName + "\"\n";
-	versionFile += "#define " GEN_PREFIX "_CPY_NOTE \"" + CopyNotice + "\"\n";
-	versionFile += "#define " GEN_PREFIX "_AUTHOR \"" + AuthorName + "\"\n\n";
-	versionFile += "#define " GEN_PREFIX "_GIT_TAG \"" + GitTag + "\"\n";
-	versionFile += "#define " GEN_PREFIX "_GIT_BRANCH \"" + GitBranch + "\"\n";
-	versionFile += "#define " GEN_PREFIX "_GIT_COMMIT \"" + GitCommit + "\"\n";
-	versionFile += "#define " GEN_PREFIX "_GIT_DATE \"" + std::string(GitDateBuffer) + "\"\n";
-	versionFile += "#define " GEN_PREFIX "_GIT_TIME \"" + std::string(GitTimeBuffer) + "\"\n\n";
-	versionFile += "#define " GEN_PREFIX "_BUILD_DATE \"" + std::string(NowDateBuffer) + "\"\n";
-	versionFile += "#define " GEN_PREFIX "_BUILD_TIME \"" + std::string(NowTimeBuffer) + "\"\n";
-	
-	// Write version.h
-	FILE* file = nullptr;
-	fopen_s(&file, (OutputPath + std::string("version.h")).c_str(), "w");
-	if (file)
-	{
-		fwrite(versionFile.c_str(), sizeof(char), versionFile.size(), file);
-		fclose(file);
-	}
+    char versionFilePath[_MAX_PATH];
+    snprintf(
+        versionFilePath,
+        sizeof(versionFilePath),
+        "%sversion.h",
+        OutputPath
+    );
 
-	return 0;
+    FILE* file = fopen(versionFilePath, "w");
+    if (file)
+    {
+        fwrite(
+            versionFile,
+            sizeof(char),
+            strlen(versionFile),
+            file
+        );
+        fclose(file);
+    }
+
+    return 0;
 }
 //********************************************************************************************
