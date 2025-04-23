@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Barracuda Bits
+ * Copyright 2025 Barracuda Bits
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this work and associated documentation files (the "Work"), to deal in the
@@ -26,8 +26,7 @@
 #include <time.h>
 // INTERNAL INCLUDES
 
-#define GEN_PREFIX "BE"
-#define STRINGIFY(x) #x
+#define GEN_PREFIX "VER"
 #define MAX_PARAM_SIZE 128
 #define MAX_DATE_SIZE 32
 #define MAX_CPYN_SIZE 64
@@ -38,6 +37,7 @@
 #   define pclose _pclose
 #endif
 
+char* GetCommandOutput(const char* cmd, char* result, int resultSize);
 //********************************************************************************************
 char* GetCommandOutput(const char* cmd, char* result, int resultSize)
 {
@@ -45,11 +45,12 @@ char* GetCommandOutput(const char* cmd, char* result, int resultSize)
     FILE* pipe = popen(cmd, "r");
     if (!pipe) return result;
 
-    char tempResult[4096] = "";
+    char tempResult[4096];
+	memset(tempResult, 0, sizeof(tempResult));
     while (fgets(buffer, sizeof buffer, pipe) != NULL)
     {
         if (strlen(tempResult) + strlen(buffer) < sizeof(tempResult))
-            strcat(tempResult, buffer);
+            strcat_s(tempResult, 4096, buffer);
         else
             break;
     }
@@ -57,7 +58,7 @@ char* GetCommandOutput(const char* cmd, char* result, int resultSize)
     pclose(pipe);
 
     if (tempResult[0] != '\0')
-        strncpy(result, tempResult, resultSize - 1);
+		strncpy_s(result, (size_t)resultSize, tempResult, (size_t)resultSize - 1);
 
     return result;
 }
@@ -66,24 +67,35 @@ int main(int argc, char* argv[])
 {
     printf("Creating version...\n");
 
-    char AuthorName[MAX_PARAM_SIZE] = "N/A";
-    char EngineName[MAX_PARAM_SIZE] = "N/A";
-	char StartYear[MAX_PARAM_SIZE] = "";
-    char OutputPath[_MAX_PATH] = "";
+    char* n_a = "N/A";
+	size_t n_a_len = strlen(n_a);
+
+    char AuthorName[MAX_PARAM_SIZE];
+    memcpy_s(AuthorName, MAX_PARAM_SIZE, n_a, n_a_len);
+    char PrefixName[MAX_PARAM_SIZE];
+    memcpy_s(PrefixName, MAX_PARAM_SIZE, GEN_PREFIX, strlen(GEN_PREFIX));
+    char EngineName[MAX_PARAM_SIZE];
+    memcpy_s(EngineName, MAX_PARAM_SIZE, n_a, n_a_len);
+	char StartYear[MAX_PARAM_SIZE];
+	memset(StartYear, 0, MAX_PARAM_SIZE);
+    char OutputPath[_MAX_PATH];
+	memset(OutputPath, 0, _MAX_PATH);
 
     for (int i = 1; i < argc; ++i)
     {
         if (strcmp(argv[i], "-o") == 0 && (i + 1) < argc)
-            strcpy(OutputPath, argv[i + 1]);
+            strcpy_s(OutputPath, _MAX_PATH, argv[i + 1]);
+        else if (strcmp(argv[i], "-p") == 0 && (i + 1) < argc)
+            strcpy_s(PrefixName, MAX_PARAM_SIZE, argv[i + 1]);
         else if (strcmp(argv[i], "-e") == 0 && (i + 1) < argc)
-            strcpy(EngineName, argv[i + 1]);
+            strcpy_s(EngineName, MAX_PARAM_SIZE, argv[i + 1]);
         else if (strcmp(argv[i], "-a") == 0 && (i + 1) < argc)
-            strcpy(AuthorName, argv[i + 1]);
+            strcpy_s(AuthorName, MAX_PARAM_SIZE, argv[i + 1]);
 		else if (strcmp(argv[i], "-s") == 0 && (i + 1) < argc)
-			strcpy(StartYear, argv[i + 1]);
+            strcpy_s(StartYear, MAX_PARAM_SIZE, argv[i + 1]);
 		else if (strcmp(argv[i], "-h") == 0)
 		{
-			printf("Usage: version -o <output path> -e <engine name> -a <author name> -s <start year>\n");
+			printf("Usage: version -o <output path> -p <prefix> -e <engine name> -a <author name> -s <start year>\n");
 			return 0;
 		}
     }
@@ -107,38 +119,41 @@ int main(int argc, char* argv[])
 	GetCommandOutput("git log -1 --format=%ct", GitDate, MAX_PARAM_SIZE);
 
 	// remove newline characters
-	if (GitTag) GitTag[strcspn(GitTag, "\n")] = 0;
-	if (GitBranch) GitBranch[strcspn(GitBranch, "\n")] = 0;
-	if (GitCommit) GitCommit[strcspn(GitCommit, "\n")] = 0;
-	if (GitDate) GitDate[strcspn(GitDate, "\n")] = 0;
+	GitTag[strcspn(GitTag, "\n")] = 0;
+	GitBranch[strcspn(GitBranch, "\n")] = 0;
+	GitCommit[strcspn(GitCommit, "\n")] = 0;
+	GitDate[strcspn(GitDate, "\n")] = 0;
 
     time_t NowTS = time(0);
-    struct tm* NowDateTime = gmtime(&NowTS);
+    struct tm NowDateTime;
+    gmtime_s(&NowDateTime, &NowTS);
 
 	if (StartYear[0] == '\0')
 	{
 		printf("Error: Start year is not set, taking this year.\n");
-		snprintf(
+        _snprintf_s(
             StartYear,
             sizeof(StartYear),
+            sizeof(StartYear) - 1,
             "%d",
-            NowDateTime->tm_year + 1900
+            NowDateTime.tm_year + 1900
         );
 	}
 
     char CopyNotice[MAX_CPYN_SIZE];
-    snprintf(
+    _snprintf_s(
         CopyNotice,
         sizeof(CopyNotice),
+		sizeof(CopyNotice) - 1,
         "\xA9 %s - %d",
         StartYear,
-        NowDateTime->tm_year + 1900
+        NowDateTime.tm_year + 1900
     );
 
     char NowDateBuffer[MAX_DATE_SIZE];
     char NowTimeBuffer[MAX_DATE_SIZE];
-    strftime(NowDateBuffer, MAX_DATE_SIZE, "%Y-%m-%d", NowDateTime);
-    strftime(NowTimeBuffer, MAX_DATE_SIZE, "%H:%M:%S", NowDateTime);
+    strftime(NowDateBuffer, MAX_DATE_SIZE, "%Y-%m-%d", &NowDateTime);
+    strftime(NowTimeBuffer, MAX_DATE_SIZE, "%H:%M:%S", &NowDateTime);
 
     printf("--------------------\n");
 	printf("Parameters collected\n");
@@ -153,27 +168,27 @@ int main(int argc, char* argv[])
 
     char GitDateBuffer[MAX_DATE_SIZE] = "N/A";
 	char GitTimeBuffer[MAX_DATE_SIZE] = "N/A";
-    if (GitDate)
-    {
-        time_t GitTS = atoi(GitDate);
-        struct tm* GitDateTime = gmtime(&GitTS);
 
-        strftime(GitDateBuffer, MAX_DATE_SIZE, "%Y-%m-%d", GitDateTime);
-        strftime(GitTimeBuffer, MAX_DATE_SIZE, "%H:%M:%S", GitDateTime);
+    time_t GitTS = atoi(GitDate);
+    struct tm GitDateTime;
+    gmtime_s(&GitDateTime, &GitTS);
 
-        printf("Git Date (UTC): %s", asctime(GitDateTime));
-        printf("Build Date (UTC): %s", asctime(NowDateTime));
-    }
+    strftime(GitDateBuffer, MAX_DATE_SIZE, "%Y-%m-%d", &GitDateTime);
+    strftime(GitTimeBuffer, MAX_DATE_SIZE, "%H:%M:%S", &GitDateTime);
+
+    printf("Git Date (UTC): %s", GitDateBuffer);
+    printf("Build Date (UTC): %s", GitTimeBuffer);
 
     char versionFile[MAX_OUTPUT_SIZE];
-    snprintf(
+    _snprintf_s(
         versionFile,
         sizeof(versionFile),
+		sizeof(versionFile) - 1,
 		"// DO NOT MODIFY THIS FILE.\n"
 		"// This file is auto-generated by version tool.\n"
-		"// Generation DTG: %sZ%s\n\n"
-        "#ifndef __VERSION_H__\n"
-		"#define __VERSION_H__\n\n"
+		"// Generation DTG: %sT%sZ\n\n"
+        "#ifndef VERSION_H\n"
+		"#define VERSION_H\n\n"
         "#define %s_ENGINE_NAME \"%s\"\n"
         "#define %s_CPY_NOTE \"%s\"\n"
         "#define %s_AUTHOR \"%s\"\n\n"
@@ -184,29 +199,31 @@ int main(int argc, char* argv[])
         "#define %s_GIT_TIME \"%s\"\n\n"
         "#define %s_BUILD_DATE \"%s\"\n"
         "#define %s_BUILD_TIME \"%s\"\n\n"
-		"#endif\n",
+		"#endif // VERSION_H\n",
 		NowDateBuffer, NowTimeBuffer,
-        GEN_PREFIX, EngineName,
-        GEN_PREFIX, CopyNotice,
-        GEN_PREFIX, AuthorName,
-        GEN_PREFIX, GitTag,
-        GEN_PREFIX, GitBranch,
-        GEN_PREFIX, GitCommit,
-        GEN_PREFIX, GitDateBuffer,
-        GEN_PREFIX, GitTimeBuffer,
-        GEN_PREFIX, NowDateBuffer,
-        GEN_PREFIX, NowTimeBuffer
+        PrefixName, EngineName,
+        PrefixName, CopyNotice,
+        PrefixName, AuthorName,
+        PrefixName, GitTag,
+        PrefixName, GitBranch,
+        PrefixName, GitCommit,
+        PrefixName, GitDateBuffer,
+        PrefixName, GitTimeBuffer,
+        PrefixName, NowDateBuffer,
+        PrefixName, NowTimeBuffer
     );
 
     char versionFilePath[_MAX_PATH];
-    snprintf(
+    _snprintf_s(
         versionFilePath,
         sizeof(versionFilePath),
+		sizeof(versionFilePath) - 1,
         "%sversion.h",
         OutputPath
     );
 
-    FILE* file = fopen(versionFilePath, "w");
+    FILE* file;
+    fopen_s(&file, versionFilePath, "w");
     if (file)
     {
         fwrite(
