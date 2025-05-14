@@ -37,7 +37,6 @@
 #   define pclose _pclose
 #endif
 
-char* GetCommandOutput(const char* cmd, char* result, int resultSize);
 //********************************************************************************************
 char* GetCommandOutput(const char* cmd, char* result, int resultSize)
 {
@@ -61,6 +60,22 @@ char* GetCommandOutput(const char* cmd, char* result, int resultSize)
 		strncpy_s(result, (size_t)resultSize, tempResult, (size_t)resultSize - 1);
 
     return result;
+}
+//********************************************************************************************
+size_t GetCommandLineCount(const char* cmd)
+{
+    size_t count = 0;
+
+    char buffer[256];
+    FILE* fp = popen(cmd, "r");
+    while (fgets(buffer, sizeof(buffer), fp) != NULL)
+    {
+        count++;
+    }
+
+    pclose(fp);
+
+    return count;
 }
 //********************************************************************************************
 int main(int argc, char* argv[])
@@ -108,18 +123,27 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-	char GitTag[MAX_PARAM_SIZE] = "dev";
+    char GitTag[MAX_PARAM_SIZE] = "dev";
+	size_t VersionMajor = 0;
+    char VersionMinor[MAX_PARAM_SIZE] = "0";
+    char VersionPatch[MAX_PARAM_SIZE] = "0";
+
 	char GitBranch[MAX_PARAM_SIZE] = "N/A";
 	char GitCommit[MAX_PARAM_SIZE] = "N/A";
 	char GitDate[MAX_PARAM_SIZE] = "0";
 
 	GetCommandOutput("git describe --tags --abbrev=0", GitTag, MAX_PARAM_SIZE);
+    VersionMajor = GetCommandLineCount("git tag");
+    GetCommandOutput("git rev-list --count main", VersionMinor, MAX_PARAM_SIZE);
+    GetCommandOutput("git rev-list --count patch", VersionPatch, MAX_PARAM_SIZE);
 	GetCommandOutput("git rev-parse --abbrev-ref HEAD", GitBranch, MAX_PARAM_SIZE);
 	GetCommandOutput("git rev-parse --short HEAD", GitCommit, MAX_PARAM_SIZE);
 	GetCommandOutput("git log -1 --format=%ct", GitDate, MAX_PARAM_SIZE);
 
 	// remove newline characters
 	GitTag[strcspn(GitTag, "\n")] = 0;
+    VersionMinor[strcspn(VersionMinor, "\n")] = 0;
+    VersionPatch[strcspn(VersionPatch, "\n")] = 0;
 	GitBranch[strcspn(GitBranch, "\n")] = 0;
 	GitCommit[strcspn(GitCommit, "\n")] = 0;
 	GitDate[strcspn(GitDate, "\n")] = 0;
@@ -193,6 +217,7 @@ int main(int argc, char* argv[])
         "#define %s_CPY_NOTE \"%s\"\n"
         "#define %s_AUTHOR \"%s\"\n\n"
         "#define %s_GIT_TAG \"%s\"\n"
+        "#define %s_GIT_VERSION \"%d.%s.%s\"\n"
         "#define %s_GIT_BRANCH \"%s\"\n"
         "#define %s_GIT_COMMIT \"%s\"\n"
         "#define %s_GIT_DATE \"%s\"\n"
@@ -205,6 +230,7 @@ int main(int argc, char* argv[])
         PrefixName, CopyNotice,
         PrefixName, AuthorName,
         PrefixName, GitTag,
+        PrefixName, VersionMajor, VersionMinor, VersionPatch,
         PrefixName, GitBranch,
         PrefixName, GitCommit,
         PrefixName, GitDateBuffer,
