@@ -224,6 +224,7 @@ int main(int argc, char* argv[])
         "#define %s_GIT_TIME \"%s\"\n\n"
         "#define %s_BUILD_DATE \"%s\"\n"
         "#define %s_BUILD_TIME \"%s\"\n\n"
+		"#define %s_IS_HOTFIX %d\n\n"
 		"#endif // VERSION_H\n",
 		NowDateBuffer, NowTimeBuffer,
         PrefixName, EngineName,
@@ -236,7 +237,8 @@ int main(int argc, char* argv[])
         PrefixName, GitDateBuffer,
         PrefixName, GitTimeBuffer,
         PrefixName, NowDateBuffer,
-        PrefixName, NowTimeBuffer
+        PrefixName, NowTimeBuffer,
+		PrefixName, (VersionPatch > 0)
     );
 
     char versionFilePath[_MAX_PATH];
