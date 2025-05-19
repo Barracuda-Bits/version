@@ -123,27 +123,24 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    char GitTag[MAX_PARAM_SIZE] = "dev";
+	// integer based git parsing
 	size_t VersionMajor = 0;
-    char VersionMinor[MAX_PARAM_SIZE] = "0";
-    char VersionPatch[MAX_PARAM_SIZE] = "0";
+    size_t VersionMinor = 0;
+    size_t VersionPatch = 0;
+    VersionMajor = GetCommandLineCount("git tag");
+    VersionMinor = GetCommandLineCount("git rev-list main") + (GetCommandLineCount("git status --porcelain") > 0);
+    VersionPatch = GetCommandLineCount("git rev-list patch");
 
+    // String based git parsing
+    char GitTag[MAX_PARAM_SIZE] = "dev";
 	char GitBranch[MAX_PARAM_SIZE] = "N/A";
 	char GitCommit[MAX_PARAM_SIZE] = "N/A";
 	char GitDate[MAX_PARAM_SIZE] = "0";
-
 	GetCommandOutput("git describe --tags --abbrev=0", GitTag, MAX_PARAM_SIZE);
-    VersionMajor = GetCommandLineCount("git tag");
-    GetCommandOutput("git rev-list --count main", VersionMinor, MAX_PARAM_SIZE);
-    GetCommandOutput("git rev-list --count patch", VersionPatch, MAX_PARAM_SIZE);
 	GetCommandOutput("git rev-parse --abbrev-ref HEAD", GitBranch, MAX_PARAM_SIZE);
 	GetCommandOutput("git rev-parse --short HEAD", GitCommit, MAX_PARAM_SIZE);
 	GetCommandOutput("git log -1 --format=%ct", GitDate, MAX_PARAM_SIZE);
-
-	// remove newline characters
 	GitTag[strcspn(GitTag, "\n")] = 0;
-    VersionMinor[strcspn(VersionMinor, "\n")] = 0;
-    VersionPatch[strcspn(VersionPatch, "\n")] = 0;
 	GitBranch[strcspn(GitBranch, "\n")] = 0;
 	GitCommit[strcspn(GitCommit, "\n")] = 0;
 	GitDate[strcspn(GitDate, "\n")] = 0;
@@ -151,7 +148,6 @@ int main(int argc, char* argv[])
     time_t NowTS = time(0);
     struct tm NowDateTime;
     gmtime_s(&NowDateTime, &NowTS);
-
 	if (StartYear[0] == '\0')
 	{
 		printf("Error: Start year is not set, taking this year.\n");
@@ -163,7 +159,6 @@ int main(int argc, char* argv[])
             NowDateTime.tm_year + 1900
         );
 	}
-
     char CopyNotice[MAX_CPYN_SIZE];
     _snprintf_s(
         CopyNotice,
@@ -187,6 +182,11 @@ int main(int argc, char* argv[])
     printf("Copy Notice: %s\n", CopyNotice);
     printf("Engine: %s\n", EngineName);
     printf("Git Version: %s\n", GitTag);
+	printf("Git Version (int): %d.%d.%d\n",
+        VersionMajor,
+        VersionMinor,
+        VersionPatch
+    );
     printf("Git Branch: %s\n", GitBranch);
     printf("Git Commit: %s\n", GitCommit);
 
@@ -217,7 +217,7 @@ int main(int argc, char* argv[])
         "#define %s_CPY_NOTE \"%s\"\n"
         "#define %s_AUTHOR \"%s\"\n\n"
         "#define %s_GIT_TAG \"%s\"\n"
-        "#define %s_GIT_VERSION \"%d.%s.%s\"\n"
+        "#define %s_GIT_VERSION \"%d.%d.%d\"\n"
         "#define %s_GIT_BRANCH \"%s\"\n"
         "#define %s_GIT_COMMIT \"%s\"\n"
         "#define %s_GIT_DATE \"%s\"\n"
