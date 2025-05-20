@@ -127,9 +127,16 @@ int main(int argc, char* argv[])
 	size_t VersionMajor = 0;
     size_t VersionMinor = 0;
     size_t VersionPatch = 0;
+
+    int UnstagedBump = (GetCommandLineCount("git status --porcelain") > 0);
+    int PatchExists = GetCommandLineCount("git show-ref --verify refs/heads/patch");
+
+    // compile major, minor, patch -> subtract version minor from patch, if patch exists
+    // because patch will encompass minor commits as well which we don't want
+    // uncommited changes will always be bumped on patch even if the branch does not exist
     VersionMajor = GetCommandLineCount("git tag");
-    VersionMinor = GetCommandLineCount("git rev-list main") + (GetCommandLineCount("git status --porcelain") > 0);
-    VersionPatch = GetCommandLineCount("git rev-list patch");
+    VersionMinor = GetCommandLineCount("git rev-list main");
+    VersionPatch = GetCommandLineCount("git rev-list patch") + UnstagedBump - (PatchExists * VersionMinor);
 
     // String based git parsing
     char GitTag[MAX_PARAM_SIZE] = "dev";
@@ -182,10 +189,10 @@ int main(int argc, char* argv[])
     printf("Copy Notice: %s\n", CopyNotice);
     printf("Engine: %s\n", EngineName);
     printf("Git Version: %s\n", GitTag);
-	printf("Git Version (int): %d.%d.%d\n",
-        VersionMajor,
-        VersionMinor,
-        VersionPatch
+	printf("Git Version: %d.%d.%d\n",
+        (int)VersionMajor,
+        (int)VersionMinor,
+        (int)VersionPatch
     );
     printf("Git Branch: %s\n", GitBranch);
     printf("Git Commit: %s\n", GitCommit);
@@ -200,8 +207,8 @@ int main(int argc, char* argv[])
     strftime(GitDateBuffer, MAX_DATE_SIZE, "%Y-%m-%d", &GitDateTime);
     strftime(GitTimeBuffer, MAX_DATE_SIZE, "%H:%M:%S", &GitDateTime);
 
-    printf("Git Date (UTC): %s", GitDateBuffer);
-    printf("Build Date (UTC): %s", GitTimeBuffer);
+    printf("Git Date (UTC): %sT%sZ\n", GitDateBuffer, GitTimeBuffer);
+    printf("Build Date (UTC): %sT%sZ\n", NowDateBuffer, NowTimeBuffer);
 
     char versionFile[MAX_OUTPUT_SIZE];
     _snprintf_s(
@@ -231,7 +238,7 @@ int main(int argc, char* argv[])
         PrefixName, CopyNotice,
         PrefixName, AuthorName,
         PrefixName, GitTag,
-        PrefixName, VersionMajor, VersionMinor, VersionPatch,
+        PrefixName, (int)VersionMajor, (int)VersionMinor, (int)VersionPatch,
         PrefixName, GitBranch,
         PrefixName, GitCommit,
         PrefixName, GitDateBuffer,
