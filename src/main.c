@@ -85,6 +85,8 @@ int main(int argc, char* argv[])
     char* n_a = "N/A";
 	size_t n_a_len = strlen(n_a);
 
+    char ApplicationName[MAX_PARAM_SIZE];
+    memcpy_s(ApplicationName, MAX_PARAM_SIZE, n_a, n_a_len);
     char AuthorName[MAX_PARAM_SIZE];
     memcpy_s(AuthorName, MAX_PARAM_SIZE, n_a, n_a_len);
     char PrefixName[MAX_PARAM_SIZE];
@@ -100,6 +102,8 @@ int main(int argc, char* argv[])
     {
         if (strcmp(argv[i], "-o") == 0 && (i + 1) < argc)
             strcpy_s(OutputPath, _MAX_PATH, argv[i + 1]);
+		else if (strcmp(argv[i], "-n") == 0 && (i + 1) < argc)
+			strcpy_s(ApplicationName, MAX_PARAM_SIZE, argv[i + 1]);
         else if (strcmp(argv[i], "-p") == 0 && (i + 1) < argc)
             strcpy_s(PrefixName, MAX_PARAM_SIZE, argv[i + 1]);
         else if (strcmp(argv[i], "-e") == 0 && (i + 1) < argc)
@@ -110,10 +114,14 @@ int main(int argc, char* argv[])
             strcpy_s(StartYear, MAX_PARAM_SIZE, argv[i + 1]);
 		else if (strcmp(argv[i], "-h") == 0)
 		{
-			printf("Usage: version -o <output path> -p <prefix> -e <engine name> -a <author name> -s <start year>\n");
+			printf("Usage: version -o <output path> -n <application name> -p <prefix> -e <engine name> -a <author name> -s <start year>\n");
 			return 0;
 		}
     }
+
+	// check if first letter of application name is lowercase and convert to uppercase
+	if (ApplicationName[0] >= 'a' && ApplicationName[0] <= 'z')
+		ApplicationName[0] = (char)(ApplicationName[0] - ('a' - 'A'));
 
     char Fetch[MAX_PARAM_SIZE];
 	GetCommandOutput("git fetch", Fetch, MAX_PARAM_SIZE);
@@ -185,6 +193,7 @@ int main(int argc, char* argv[])
 	printf("Parameters collected\n");
     printf("--------------------\n");
 
+	printf("Application Name: %s\n", ApplicationName);
     printf("Author: %s\n", AuthorName);
     printf("Copy Notice: %s\n", CopyNotice);
     printf("Engine: %s\n", EngineName);
@@ -220,11 +229,15 @@ int main(int argc, char* argv[])
 		"// Generation DTG: %sT%sZ\n\n"
         "#ifndef VERSION_H\n"
 		"#define VERSION_H\n\n"
+		"#define %s_APPLICATION_NAME \"%s\"\n"
         "#define %s_ENGINE_NAME \"%s\"\n"
         "#define %s_CPY_NOTE \"%s\"\n"
         "#define %s_AUTHOR \"%s\"\n\n"
         "#define %s_GIT_TAG \"%s\"\n"
         "#define %s_GIT_VERSION \"%d.%d.%d\"\n"
+        "#define %s_GIT_VERSION_MAJOR %d\n"
+        "#define %s_GIT_VERSION_MINOR %d\n"
+        "#define %s_GIT_VERSION_PATCH %d\n"
         "#define %s_GIT_BRANCH \"%s\"\n"
         "#define %s_GIT_COMMIT \"%s\"\n"
         "#define %s_GIT_DATE \"%s\"\n"
@@ -234,11 +247,15 @@ int main(int argc, char* argv[])
 		"#define %s_IS_HOTFIX %d\n\n"
 		"#endif // VERSION_H\n",
 		NowDateBuffer, NowTimeBuffer,
+		PrefixName, ApplicationName,
         PrefixName, EngineName,
         PrefixName, CopyNotice,
         PrefixName, AuthorName,
         PrefixName, GitTag,
         PrefixName, (int)VersionMajor, (int)VersionMinor, (int)VersionPatch,
+        PrefixName, (int)VersionMajor,
+        PrefixName, (int)VersionMinor,
+        PrefixName, (int)VersionPatch,
         PrefixName, GitBranch,
         PrefixName, GitCommit,
         PrefixName, GitDateBuffer,
