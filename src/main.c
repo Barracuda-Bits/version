@@ -37,12 +37,34 @@
 #   define pclose _pclose
 #endif
 
+#define MAX_PATH 260
+
+#define bool int
+#define true 1
+#define false 0
+
+static bool quiet = true;
+
+#define print_console(...)          \
+do                                  \
+{                                   \
+    if (!quiet)                     \
+    {                               \
+        printf(__VA_ARGS__);        \
+    }                               \
+} while (0)
+
 //********************************************************************************************
 char* GetCommandOutput(const char* cmd, char* result, int resultSize)
 {
     char buffer[128];
     FILE* pipe = popen(cmd, "r");
-    if (!pipe) return result;
+
+    if (!pipe)
+    {
+        print_console("Error: Could not open pipe for command '%s'\n", cmd);
+        return NULL;
+	}
 
     char tempResult[4096];
 	memset(tempResult, 0, sizeof(tempResult));
@@ -68,6 +90,13 @@ size_t GetCommandLineCount(const char* cmd)
 
     char buffer[256];
     FILE* fp = popen(cmd, "r");
+
+    if (!fp)
+    {
+        print_console("Error: Could not open pipe for command '%s'\n", cmd);
+        return 0;
+	}
+
     while (fgets(buffer, sizeof(buffer), fp) != NULL)
     {
         count++;
@@ -80,8 +109,6 @@ size_t GetCommandLineCount(const char* cmd)
 //********************************************************************************************
 int main(int argc, char* argv[])
 {
-    printf("Creating version...\n");
-
     char* n_a = "N/A";
 	size_t n_a_len = strlen(n_a);
 
@@ -95,13 +122,13 @@ int main(int argc, char* argv[])
     memcpy_s(EngineName, MAX_PARAM_SIZE, n_a, n_a_len);
 	char StartYear[MAX_PARAM_SIZE];
 	memset(StartYear, 0, MAX_PARAM_SIZE);
-    char OutputPath[_MAX_PATH];
-	memset(OutputPath, 0, _MAX_PATH);
+    char OutputPath[MAX_PATH];
+	memset(OutputPath, 0, MAX_PATH);
 
     for (int i = 1; i < argc; ++i)
     {
         if (strcmp(argv[i], "-o") == 0 && (i + 1) < argc)
-            strcpy_s(OutputPath, _MAX_PATH, argv[i + 1]);
+            strcpy_s(OutputPath, MAX_PATH, argv[i + 1]);
 		else if (strcmp(argv[i], "-n") == 0 && (i + 1) < argc)
 			strcpy_s(ApplicationName, MAX_PARAM_SIZE, argv[i + 1]);
         else if (strcmp(argv[i], "-p") == 0 && (i + 1) < argc)
@@ -112,12 +139,28 @@ int main(int argc, char* argv[])
             strcpy_s(AuthorName, MAX_PARAM_SIZE, argv[i + 1]);
 		else if (strcmp(argv[i], "-s") == 0 && (i + 1) < argc)
             strcpy_s(StartYear, MAX_PARAM_SIZE, argv[i + 1]);
+        else if (strcmp(argv[i], "--verbose") == 0)
+        {
+            quiet = false;
+			print_console("Version tool: Verbose mode enabled.\n");
+		}
 		else if (strcmp(argv[i], "-h") == 0)
 		{
-			printf("Usage: version -o <output path> -n <application name> -p <prefix> -e <engine name> -a <author name> -s <start year>\n");
+			printf("Usage: version -o <output path> -n <application name> -p <prefix> -e <engine name> -a <author name> -s <start year> --verbose\n");
 			return 0;
 		}
     }
+
+    print_console("Creating version...\n");
+
+    char versionFilePath[MAX_PATH];
+    _snprintf_s(
+        versionFilePath,
+        sizeof(versionFilePath),
+        sizeof(versionFilePath) - 1,
+        "%sversion.h",
+        OutputPath
+    );
 
 	// check if first letter of application name is lowercase and convert to uppercase
 	if (ApplicationName[0] >= 'a' && ApplicationName[0] <= 'z')
@@ -127,7 +170,7 @@ int main(int argc, char* argv[])
 	GetCommandOutput("git fetch", Fetch, MAX_PARAM_SIZE);
     if (strstr(Fetch, "fatal"))
     {
-        printf("Error: Git is not installed or not in PATH\n");
+        print_console("Error: Git is not installed or not in PATH\n");
         return 1;
     }
 
@@ -165,7 +208,7 @@ int main(int argc, char* argv[])
     gmtime_s(&NowDateTime, &NowTS);
 	if (StartYear[0] == '\0')
 	{
-		printf("Error: Start year is not set, taking this year.\n");
+        print_console("Error: Start year is not set, taking this year.\n");
         _snprintf_s(
             StartYear,
             sizeof(StartYear),
@@ -189,22 +232,22 @@ int main(int argc, char* argv[])
     strftime(NowDateBuffer, MAX_DATE_SIZE, "%Y-%m-%d", &NowDateTime);
     strftime(NowTimeBuffer, MAX_DATE_SIZE, "%H:%M:%S", &NowDateTime);
 
-    printf("--------------------\n");
-	printf("Parameters collected\n");
-    printf("--------------------\n");
+    print_console("--------------------\n");
+    print_console("Parameters collected\n");
+    print_console("--------------------\n");
 
-	printf("Application Name: %s\n", ApplicationName);
-    printf("Author: %s\n", AuthorName);
-    printf("Copy Notice: %s\n", CopyNotice);
-    printf("Engine: %s\n", EngineName);
-    printf("Git Version: %s\n", GitTag);
-	printf("Git Version: %d.%d.%d\n",
+	print_console("Application Name: %s\n", ApplicationName);
+    print_console("Author: %s\n", AuthorName);
+    print_console("Copy Notice: %s\n", CopyNotice);
+    print_console("Engine: %s\n", EngineName);
+    print_console("Git Version: %s\n", GitTag);
+	print_console("Git Version: %d.%d.%d\n",
         (int)VersionMajor,
         (int)VersionMinor,
         (int)VersionPatch
     );
-    printf("Git Branch: %s\n", GitBranch);
-    printf("Git Commit: %s\n", GitCommit);
+    print_console("Git Branch: %s\n", GitBranch);
+    print_console("Git Commit: %s\n", GitCommit);
 
     char GitDateBuffer[MAX_DATE_SIZE] = "N/A";
 	char GitTimeBuffer[MAX_DATE_SIZE] = "N/A";
@@ -216,8 +259,8 @@ int main(int argc, char* argv[])
     strftime(GitDateBuffer, MAX_DATE_SIZE, "%Y-%m-%d", &GitDateTime);
     strftime(GitTimeBuffer, MAX_DATE_SIZE, "%H:%M:%S", &GitDateTime);
 
-    printf("Git Date (UTC): %sT%sZ\n", GitDateBuffer, GitTimeBuffer);
-    printf("Build Date (UTC): %sT%sZ\n", NowDateBuffer, NowTimeBuffer);
+    print_console("Git Date (UTC): %sT%sZ\n", GitDateBuffer, GitTimeBuffer);
+    print_console("Build Date (UTC): %sT%sZ\n", NowDateBuffer, NowTimeBuffer);
 
     char versionFile[MAX_OUTPUT_SIZE];
     _snprintf_s(
@@ -263,15 +306,6 @@ int main(int argc, char* argv[])
         PrefixName, NowDateBuffer,
         PrefixName, NowTimeBuffer,
 		PrefixName, (VersionPatch > 0)
-    );
-
-    char versionFilePath[_MAX_PATH];
-    _snprintf_s(
-        versionFilePath,
-        sizeof(versionFilePath),
-		sizeof(versionFilePath) - 1,
-        "%sversion.h",
-        OutputPath
     );
 
     FILE* file;
