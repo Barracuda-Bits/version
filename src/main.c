@@ -130,7 +130,7 @@ void generate_version_header(void)
         LOG("Switching to main branch...\n");
         if (run_command("git checkout main", NULL, 0) < 0)
         {
-            fprintf_s(stderr, "Error: Could not switch to main branch.\n");
+            fprintf(stderr, "Error: Could not switch to main branch.\n");
             exit(1);
         }
 	}
@@ -203,19 +203,18 @@ void generate_version_header(void)
     if (atoi(git_time) > 0)
     {
         time_t git_ts = (time_t)atoi(git_time);
-        struct tm git_tm;
-        gmtime_s(&git_tm, &git_ts);
+        struct tm* git_tm = gmtime(&git_ts);
         strftime(
             git_date_fmt,
             sizeof(git_date_fmt),
             "%Y-%m-%d",
-            &git_tm
+            git_tm
         );
         strftime(
             git_time_fmt,
             sizeof(git_time_fmt),
             "%H:%M:%S",
-            &git_tm
+            git_tm
         );
     }
 
@@ -240,8 +239,7 @@ void generate_version_header(void)
         config.output
     );
 
-    FILE* out;
-    fopen_s(&out, output_path, "w");
+    FILE* out = fopen(output_path, "w");
     if (!out)
     {
         fprintf(stderr, "Error: Could not write to %s\n", output_path);
@@ -302,7 +300,7 @@ void generate_version_header(void)
         config.prefix, config.steam_id
     );
 
-    fprintf_s(out,
+    fprintf(out,
         "/*\n"
         " *************************************\n"
         " * DO NOT MODIFY THIS FILE.\t\t\t *\n"
@@ -371,7 +369,7 @@ void generate_version_header(void)
         LOG("Reverting back to original branch: %s\n", current_branch);
         if (run_command("git checkout -", NULL, 0) < 0)
         {
-            fprintf_s(stderr, "Error: Could not revert to original branch.\n");
+            fprintf(stderr, "Error: Could not revert to original branch.\n");
             exit(1);
         }
 	}
@@ -386,54 +384,48 @@ void parse_args(
     {
         if (!strcmp(argv[i], "-o") && i + 1 < argc)
         {
-            strncpy_s(
+            strncpy(
                 config.output,
-                sizeof(config.output),
                 argv[++i],
                 MAX_LEN
             );
         }
         else if (!strcmp(argv[i], "-n") && i + 1 < argc)
         {
-            strncpy_s(
+            strncpy(
                 config.app,
-                sizeof(config.app),
                 argv[++i],
                 MAX_LEN
             );
         }
         else if (!strcmp(argv[i], "-p") && i + 1 < argc)
         {
-            strncpy_s(
+            strncpy(
                 config.prefix,
-                sizeof(config.prefix),
                 argv[++i],
                 MAX_LEN
             );
         }
         else if (!strcmp(argv[i], "-e") && i + 1 < argc)
         {
-            strncpy_s(
+            strncpy(
                 config.engine,
-                sizeof(config.engine),
                 argv[++i],
                 MAX_LEN
             );
         }
         else if (!strcmp(argv[i], "-a") && i + 1 < argc)
         {
-            strncpy_s(
+            strncpy(
                 config.author,
-                sizeof(config.author),
                 argv[++i],
                 MAX_LEN
             );
         }
         else if (!strcmp(argv[i], "-s") && i + 1 < argc)
         {
-            strncpy_s(
+            strncpy(
                 config.year,
-                sizeof(config.year),
                 argv[++i],
                 MAX_LEN
             );
