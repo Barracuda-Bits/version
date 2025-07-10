@@ -64,6 +64,42 @@ static config_t config = {
     .steam_id = -1
 };
 //********************************************************************************************
+char* escape_shell_arg(const char* arg)
+{
+    if (arg == NULL)
+        return "";
+
+    size_t len = strlen(arg);
+    // Worst case: every character is a single quote needing 4 extra bytes + 2 for outer quotes
+    size_t max_len = len * 4 + 3;
+    char* escaped = malloc(max_len);
+
+    if (!escaped)
+        return "";
+
+    char* p = escaped;
+    *p++ = '\'';
+
+    for (size_t i = 0; i < len; i++)
+    {
+        if (arg[i] == '\'')
+        {
+            // Close quote, insert '\'' and reopen
+            strcpy(p, "'\\''");
+            p += 4;
+        }
+        else
+        {
+            *p++ = arg[i];
+        }
+    }
+
+    *p++ = '\'';
+    *p = '\0';
+
+    return escaped;
+}
+//********************************************************************************************
 void trim_newline(char* str)
 {
     size_t len = strlen(str);
@@ -165,9 +201,17 @@ void generate_version_header(void)
     // Versions
     int major = run_command_count_lines("git tag");
     char rev_cmd[MAX_LEN];
+
     if (strlen(last_tag_commit) > 0)
     {
-        snprintf(rev_cmd, sizeof(rev_cmd), "git rev-list %s..HEAD", last_tag_commit);
+        char* input = escape_shell_arg(last_tag_commit);
+        if (!input || strlen(input) == 0)
+        {
+            fprintf(stderr, "Error: Could not escape last tag commit.\n");
+            exit(1);
+		}
+        snprintf(rev_cmd, sizeof(rev_cmd), "git rev-list %s..HEAD", input);
+        free(input);
     }
     else
     {
