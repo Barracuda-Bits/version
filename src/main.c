@@ -433,6 +433,7 @@ void parse_args(
                 argv[++i],
                 MAX_LEN
             );
+            config.output[MAX_LEN - 1] = '\0';
         }
         else if (!strcmp(argv[i], "-n") && i + 1 < argc)
         {
@@ -441,6 +442,13 @@ void parse_args(
                 argv[++i],
                 MAX_LEN
             );
+
+            if (config.app[0] >= 'a' && config.app[0] <= 'z')
+            {
+                config.app[0] -= ('a' - 'A');
+            }
+
+            config.app[MAX_LEN - 1] = '\0';
         }
         else if (!strcmp(argv[i], "-p") && i + 1 < argc)
         {
@@ -449,6 +457,7 @@ void parse_args(
                 argv[++i],
                 MAX_LEN
             );
+            config.prefix[MAX_LEN - 1] = '\0';
         }
         else if (!strcmp(argv[i], "-e") && i + 1 < argc)
         {
@@ -457,6 +466,7 @@ void parse_args(
                 argv[++i],
                 MAX_LEN
             );
+            config.engine[MAX_LEN - 1] = '\0';
         }
         else if (!strcmp(argv[i], "-a") && i + 1 < argc)
         {
@@ -465,6 +475,7 @@ void parse_args(
                 argv[++i],
                 MAX_LEN
             );
+            config.author[MAX_LEN - 1] = '\0';
         }
         else if (!strcmp(argv[i], "-s") && i + 1 < argc)
         {
@@ -473,6 +484,7 @@ void parse_args(
                 argv[++i],
                 MAX_LEN
             );
+            config.year[MAX_LEN - 1] = '\0';
         }
         else if (!strcmp(argv[i], "-cwd") && i + 1 < argc)
         {
