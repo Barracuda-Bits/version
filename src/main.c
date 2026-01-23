@@ -47,6 +47,7 @@ typedef struct
     char prefix[MAX_LEN];
     char year[MAX_LEN];
     char output[MAX_LEN];
+    int release_num;
     int verbose;
     int steam_id;
 } config_t;
@@ -60,6 +61,7 @@ static config_t config = {
     .prefix = "VER",
     .year = "",
     .output = "",
+	.release_num = 0,
     .verbose = 0,
     .steam_id = -1
 };
@@ -218,6 +220,7 @@ void generate_version_header(void)
         // Count all commits (initial version)
         snprintf(rev_cmd, sizeof(rev_cmd), "git rev-list HEAD");
     }
+	int release = config.release_num;
     int minor = run_command_count_lines(rev_cmd);
     int unstaged = run_command_count_lines("git status --porcelain") > 0;
     int patch_branch_exists = run_command_count_lines("git show-ref --verify refs/heads/patch") > 0;
@@ -304,7 +307,8 @@ void generate_version_header(void)
         "#define %s_AUTHOR \"%s\"\n"
         "#define %s_COPYRIGHT \"%s\"\n\n"
         "#define %s_GIT_TAG \"%s\"\n"
-        "#define %s_GIT_VERSION \"%d.%d.%d\"\n"
+        "#define %s_GIT_VERSION \"%d.%d.%d.%d\"\n"
+        "#define %s_GIT_VERSION_RELEASE %d\n"
         "#define %s_GIT_VERSION_MAJOR %d\n"
         "#define %s_GIT_VERSION_MINOR %d\n"
         "#define %s_GIT_VERSION_PATCH %d\n"
@@ -324,7 +328,8 @@ void generate_version_header(void)
         config.prefix, config.author,
         config.prefix, cpy,
         config.prefix, tag,
-        config.prefix, major, minor, patch,
+        config.prefix, release, major, minor, patch,
+        config.prefix, release,
         config.prefix, major,
         config.prefix, minor,
         config.prefix, patch,
@@ -359,7 +364,8 @@ void generate_version_header(void)
         "#define %s_AUTHOR \"%s\"\n"
         "#define %s_COPYRIGHT \"%s\"\n\n"
         "#define %s_GIT_TAG \"%s\"\n"
-        "#define %s_GIT_VERSION \"%d.%d.%d\"\n"
+        "#define %s_GIT_VERSION \"%d.%d.%d.%d\"\n"
+        "#define %s_GIT_VERSION_RELEASE %d\n"
         "// bumped once for each associated tag\n"
         "#define %s_GIT_VERSION_MAJOR %d\n"
         "// bumped for each commit on main branch\n"
@@ -384,7 +390,8 @@ void generate_version_header(void)
         config.prefix, config.author,
         config.prefix, cpy,
         config.prefix, tag,
-        config.prefix, major, minor, patch,
+        config.prefix, release, major, minor, patch,
+        config.prefix, release,
         config.prefix, major,
         config.prefix, minor,
         config.prefix, patch,
@@ -489,6 +496,10 @@ void parse_args(
         else if (!strcmp(argv[i], "-cwd") && i + 1 < argc)
         {
             chdir(argv[++i]);
+        }
+        else if (!strcmp(argv[i], "--rn"))
+        {
+            config.release_num = atoi(argv[++i]);
         }
         else if (!strcmp(argv[i], "-steamid") && i + 1 < argc)
         {
