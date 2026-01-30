@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <stdarg.h>
 
 #ifdef _WIN32
 #   include <direct.h>
@@ -52,8 +53,6 @@ typedef struct
     int steam_id;
 } config_t;
 
-#define LOG(fmt, ...) do { if (config.verbose) printf(fmt, ##__VA_ARGS__); } while (0)
-
 static config_t config = {
     .app = "N/A",
     .engine = "N/A",
@@ -65,6 +64,21 @@ static config_t config = {
     .verbose = 0,
     .steam_id = -1
 };
+
+static inline void LOG(
+    const char* fmt,
+    ...
+)
+{
+    if (!config.verbose)
+        return;
+
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+}
+
 //********************************************************************************************
 char* escape_shell_arg(const char* arg)
 {
