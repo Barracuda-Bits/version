@@ -2,6 +2,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 // INTERNAL INCLUDES
 #include "commands.h"
 #include "logging.h"
@@ -178,11 +179,11 @@ void version_header_generate(config_t* config, arena_t* arena)
         "#define %s_AUTHOR \"%s\"\n"
         "#define %s_COPYRIGHT \"%s\"\n\n"
         "#define %s_GIT_TAG \"%s\"\n"
-        "#define %s_GIT_VERSION \"%llu.%llu.%llu.%llu\"\n"
-        "#define %s_GIT_VERSION_RELEASE %llu\n"
-        "#define %s_GIT_VERSION_MAJOR %llu\n"
-        "#define %s_GIT_VERSION_MINOR %llu\n"
-        "#define %s_GIT_VERSION_PATCH %llu\n"
+        "#define %s_GIT_VERSION \"%" PRIuPTR ".%" PRIuPTR ".%" PRIuPTR ".%" PRIuPTR "\"\n"
+        "#define %s_GIT_VERSION_RELEASE %" PRIuPTR "\n"
+        "#define %s_GIT_VERSION_MAJOR %" PRIuPTR "\n"
+        "#define %s_GIT_VERSION_MINOR %" PRIuPTR "\n"
+        "#define %s_GIT_VERSION_PATCH %" PRIuPTR "\n"
         "#define %s_GIT_BRANCH \"%s\"\n"
         "#define %s_GIT_COMMIT \"%s\"\n"
         "#define %s_GIT_DATE \"%s\"\n"
