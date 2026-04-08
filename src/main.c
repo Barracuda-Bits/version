@@ -11,39 +11,33 @@
 //********************************************************************************************
 void version_header_generate(config_t* config, arena_t* arena)
 {
-    result_handle_t result_last_tag_commit = NULL;
-    result_handle_t result_tag = NULL;
     result_handle_t result_branch = NULL;
     result_handle_t result_commit = NULL;
-    result_handle_t result_commit_time = NULL;
-    result_handle_t result_tag_list = NULL;
     result_handle_t result_commit_list = NULL;
-    result_handle_t result_unstaged = NULL;
+    result_handle_t result_commit_time = NULL;
+    result_handle_t result_last_tag_commit = NULL;
     result_handle_t result_merge_base = NULL;
     result_handle_t result_patch_commits = NULL;
+    result_handle_t result_unstaged = NULL;
+    result_handle_t result_tag = NULL;
+    result_handle_t result_tag_list = NULL;
 
-    // Get current branch
     if (!command_run(arena, "git rev-parse --abbrev-ref HEAD", &result_branch))
     {
         LOG("Error: Could not determine current branch.");
         exit(1);
     }
     const char* current_branch = command_line_get(result_branch);
-
-    // Last tag and its commit
     if (!command_run(arena, "git rev-list --tags --max-count=1", &result_last_tag_commit))
     {
         LOG("Error: Could not get last tag commit.");
         exit(1);
     }
-
     if (!command_run(arena, "git describe --tags --abbrev=0", &result_tag))
     {
         LOG("Error: Could not get last tag.");
         exit(1);
     }
-
-    // Commit hash and timestamp
     if (!command_run(arena, "git rev-parse --short HEAD", &result_commit))
     {
         LOG("Error: Could not get current commit.");
@@ -54,15 +48,11 @@ void version_header_generate(config_t* config, arena_t* arena)
         LOG("Error: Could not get commit timestamp.");
         exit(1);
     }
-
-    // Tag list (for major calculation)
     if (!command_run(arena, "git tag --sort=creatordate", &result_tag_list))
     {
         LOG("Error: Could not get tag list.");
         exit(1);
     }
-
-    // Unstaged changes
     if (!command_run(arena, "git status --porcelain", &result_unstaged))
     {
         LOG("Error: Could not get git status.");
@@ -70,12 +60,8 @@ void version_header_generate(config_t* config, arena_t* arena)
     }
     bool unstaged = command_count_lines(result_unstaged) > 0;
 
-    // --- Version calculation ---
-
-    // Major = number of tags (chronological)
     size_t major = command_count_lines(result_tag_list);
 
-    // Minor = commits since last tag on main branch
     char rev_cmd[1024];
     const char* last_tag_commit = command_line_get(result_last_tag_commit);
     if (last_tag_commit && strlen(last_tag_commit) > 0)
@@ -87,15 +73,12 @@ void version_header_generate(config_t* config, arena_t* arena)
     {
         snprintf(rev_cmd, sizeof(rev_cmd), "git rev-list main");
     }
-
     if (!command_run(arena, rev_cmd, &result_commit_list))
     {
         LOG("Error: Could not get commits since last tag.");
         exit(1);
     }
     size_t minor = command_count_lines(result_commit_list);
-
-    // Patch = commits since merge-base with main + dirty state
     if (!command_run(arena, "git merge-base main HEAD", &result_merge_base))
     {
         LOG("Error: Could not determine merge base.");
@@ -113,12 +96,10 @@ void version_header_generate(config_t* config, arena_t* arena)
         LOG("Error: Could not get patch commits.");
         exit(1);
     }
-    size_t patch = command_count_lines(result_patch_commits) + (unstaged ? 1 : 0);
 
-    // Release version
+    size_t patch = command_count_lines(result_patch_commits) + (unstaged ? 1 : 0);
     size_t release = config->release_num;
 
-    // --- Timestamps ---
     time_t now = time(NULL);
     struct tm* now_tm = gmtime(&now);
     char build_date[32], build_time[32];
@@ -135,12 +116,9 @@ void version_header_generate(config_t* config, arena_t* arena)
         strftime(git_time_fmt, sizeof(git_time_fmt), "%H:%M:%S", git_tm);
     }
 
-    // Copyright
     int cur_year = now_tm->tm_year + 1900;
-    // Use config->year if provided, otherwise current year
     const char* start_year = (config->year && strlen(config->year) > 0) ? config->year : NULL;
 
-    // Format copyright
     char cpy[64];
     if (start_year)
     {
@@ -151,7 +129,6 @@ void version_header_generate(config_t* config, arena_t* arena)
         snprintf(cpy, sizeof(cpy), "\u00A9 %d", cur_year);
     }
 
-    // Output path
     char output_path[1024];
     snprintf(output_path, sizeof(output_path), "%sversion.h", config->output);
 

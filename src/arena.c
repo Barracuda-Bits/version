@@ -4,11 +4,27 @@
 // EXTERNAL INCLUDES
 #ifdef _WIN32
 #	include <Windows.h>
+#else
+#	include <sys/mman.h>
 #endif
 // INTERNAL INCLUDES
 #include "arena.h"
 #include "vmem.h"
 
+// ***************************************************************
+#ifndef _WIN32
+void* reserve_memory(size_t size)
+{
+	void* ptr = mmap(NULL, size, PROT_NONE,
+		MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	return (ptr == MAP_FAILED) ? NULL : ptr;
+}
+// ***************************************************************
+int commit_memory(void* ptr, size_t size)
+{
+	return mprotect(ptr, size, PROT_READ | PROT_WRITE);
+}
+#endif
 // ***************************************************************
 typedef struct arena
 {
@@ -50,6 +66,9 @@ arena_t* arena_create(size_t size)
 		MEM_COMMIT,
 		PAGE_READWRITE
 	);
+#else
+	arena = (arena_t*)reserve_memory(reserve_size);
+	arena = (arena_t*)commit_memory(arena, commit_size) ? arena : NULL;
 #endif
 
 	arena->committed = commit_size;
@@ -113,6 +132,11 @@ anyptr_t arena_alloc(arena_t* arena, size_t size, size_t align)
 			{
 				return NULL;
 			}
+#else
+			if (commit_memory(commit_ptr, grow))
+			{
+				return NULL;
+			}
 #endif
 
 			arena->committed = new_commit;
@@ -129,6 +153,8 @@ void arena_destroy(arena_t* arena)
 
 #ifdef _WIN32
 	VirtualFree(arena, 0, MEM_RELEASE);
+#else
+	munmap(arena, arena->reserved);
 #endif
 }
 // ***************************************************************

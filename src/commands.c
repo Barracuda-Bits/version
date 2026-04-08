@@ -2,6 +2,12 @@
 #include <stdio.h>
 #ifdef _WIN32
 #	include <Windows.h>
+#else
+#	include <unistd.h>
+#	include <sys/wait.h>
+#	include <stdlib.h>
+#	include <string.h>
+#	include <stdbool.h>
 #endif
 // INTERNAL INCLUDES
 #include "commands.h"
@@ -33,6 +39,7 @@ bool command_trim(_command_result_t* result)
 	return true;
 }
 // ***************************************************************
+#ifdef _WIN32
 bool command_run(
 	arena_t* arena,
 	const char* cmd,
@@ -41,7 +48,6 @@ bool command_run(
 {
 	if (!arena || !cmd) return false;
 
-	// Create temporary file
 	char temp_path[MAX_PATH];
 	char temp_file[MAX_PATH];
 
@@ -61,7 +67,6 @@ bool command_run(
 	if (file == INVALID_HANDLE_VALUE)
 		return false;
 
-	// Ensure handle is inheritable
 	SetHandleInformation(file, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
 
 	STARTUPINFOA si = { 0 };
@@ -71,7 +76,6 @@ bool command_run(
 
 	PROCESS_INFORMATION pi = { 0 };
 
-	// Build command line for cmd.exe
 	char cmdline[1024];
 	MEMORY_ZERO(cmdline, sizeof(cmdline));
 
@@ -82,7 +86,7 @@ bool command_run(
 		cmdline,
 		NULL,
 		NULL,
-		TRUE, // inherit handles
+		TRUE,
 		0,
 		NULL,
 		NULL,
@@ -96,13 +100,11 @@ bool command_run(
 		return false;
 	}
 
-	// Wait for process
 	WaitForSingleObject(pi.hProcess, INFINITE);
 
 	CloseHandle(pi.hProcess);
 	CloseHandle(pi.hThread);
 
-	// Get size
 	LARGE_INTEGER size_li;
 	if (!GetFileSizeEx(file, &size_li))
 	{
@@ -112,7 +114,6 @@ bool command_run(
 
 	size_t size = (size_t)size_li.QuadPart;
 
-	// Allocate exact memory from arena
 	char* buffer = arena_alloc(arena, size + 1, 8);
 	if (!buffer)
 	{
@@ -120,7 +121,6 @@ bool command_run(
 		return false;
 	}
 
-	// Read file
 	SetFilePointer(file, 0, NULL, FILE_BEGIN);
 
 	DWORD read_bytes = 0;
@@ -150,6 +150,102 @@ bool command_run(
 
 	return true;
 }
+#else
+bool command_run(
+	arena_t* arena,
+	const char* cmd,
+	result_handle_t* result
+)
+{
+	if (!arena || !cmd) return false;
+
+	int pipefd[2];
+	if (pipe(pipefd) != 0)
+		return false;
+
+	pid_t pid = fork();
+	if (pid < 0)
+	{
+		close(pipefd[0]);
+		close(pipefd[1]);
+		return false;
+	}
+
+	if (pid == 0)
+	{
+		close(pipefd[0]);
+
+		dup2(pipefd[1], STDOUT_FILENO);
+
+		close(pipefd[1]);
+
+		execl("/bin/sh", "sh", "-c", cmd, (char*)NULL);
+
+		_exit(127);
+	}
+
+	close(pipefd[1]);
+
+	size_t capacity = 4096;
+	size_t size = 0;
+	char* buffer = arena_alloc(arena, capacity, 8);
+	if (!buffer)
+	{
+		close(pipefd[0]);
+		return false;
+	}
+
+	while (1)
+	{
+		if (size == capacity)
+		{
+			size_t new_cap = capacity * 2;
+			char* new_buf = arena_alloc(arena, new_cap, 8);
+			if (!new_buf)
+			{
+				close(pipefd[0]);
+				return false;
+			}
+
+			memcpy(new_buf, buffer, size);
+			buffer = new_buf;
+			capacity = new_cap;
+		}
+
+		ssize_t n = read(pipefd[0], buffer + size, capacity - size);
+		if (n < 0)
+		{
+			close(pipefd[0]);
+			return false;
+		}
+		if (n == 0)
+			break;
+
+		size += (size_t)n;
+	}
+
+	close(pipefd[0]);
+
+	waitpid(pid, NULL, 0);
+
+	buffer[size] = '\0';
+
+	_command_result_t* _result = (_command_result_t*)arena_alloc(
+		arena,
+		sizeof(_command_result_t),
+		alignof(size_t)
+	);
+
+	if (_result)
+	{
+		_result->data = buffer;
+		_result->size = size;
+		*result = (result_handle_t)_result;
+	}
+
+	return true;
+}
+#endif
 // ***************************************************************
 size_t command_count_lines(
 	result_handle_t result
@@ -195,7 +291,7 @@ char* escape_shell_arg(arena_t* arena, const char* arg)
         return "";
 
     size_t len = strlen(arg);
-    // Worst case: every character is a single quote needing 4 extra bytes + 2 for outer quotes
+
     size_t max_len = len * 4 + 3;
     char* escaped = arena_alloc(arena, max_len, 1);
 
@@ -209,7 +305,6 @@ char* escape_shell_arg(arena_t* arena, const char* arg)
     {
         if (arg[i] == '\'')
         {
-            // Close quote, insert '\'' and reopen
             strcpy(p, "'\\''");
             p += 4;
         }
@@ -225,3 +320,24 @@ char* escape_shell_arg(arena_t* arena, const char* arg)
     return escaped;
 }
 // ***************************************************************
+
+/*
+ * Copyright 2025 Barracuda Bits
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this work and associated documentation files (the "Work"), to deal in the
+ * Work without restriction, including without limitation the rights to use, copy,
+ * modify, merge, publish, distribute, sublicense, and/or sell copies of the Work,
+ * and to permit persons to whom the Work is furnished to do so, subject to the
+ * following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Work.
+ *
+ * THE WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+ * PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN
+ * CONNECTION WITH THE WORK OR THE USE OR OTHER DEALINGS IN THE WORK.
+ */
